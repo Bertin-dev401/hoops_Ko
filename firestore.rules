@@ -1,0 +1,141 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helper functions ──────────────────────────────────────────────────
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    function isMember(communityId) {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/memberships/$(request.auth.uid + '_' + communityId));
+    }
+
+    function isSessionMember(sessionId) {
+      // Community membership check via session document
+      let session = get(/databases/$(database)/documents/sessions/$(sessionId));
+      return isSignedIn() && isMember(session.data.communityId);
+    }
+
+    function isValidString(value, maxLen) {
+      return value is string && value.size() > 0 && value.size() <= maxLen;
+    }
+
+    // ── Users ─────────────────────────────────────────────────────────────
+
+    match /users/{userId} {
+      // Only the user can read/write their own record
+      allow read: if isSignedIn() && isOwner(userId);
+      allow create: if isSignedIn() && isOwner(userId)
+        && request.resource.data.keys().hasAll(['uid', 'email', 'displayName', 'createdAt'])
+        && isValidString(request.resource.data.displayName, 60)
+        && request.resource.data.uid == userId;
+      allow update: if isSignedIn() && isOwner(userId)
+        && request.resource.data.uid == userId
+        && request.resource.data.email == resource.data.email; // email immutable
+      allow delete: if false;
+    }
+
+    // ── Communities ────────────────────────────────────────────────────────
+
+    match /communities/{communityId} {
+      // Anyone signed in can read communities (browse)
+      allow read: if isSignedIn();
+
+      // Only signed-in users can create, must be valid and set themselves as owner
+      allow create: if isSignedIn()
+        && request.resource.data.keys().hasAll(['name', 'description', 'location', 'ownerId', 'ownerName', 'memberCount', 'createdAt'])
+        && request.resource.data.ownerId == request.auth.uid
+        && isValidString(request.resource.data.name, 60)
+        && isValidString(request.resource.data.location, 80)
+        && request.resource.data.description is string
+        && request.resource.data.description.size() <= 300
+        && request.resource.data.memberCount == 1;
+
+      // Only owner can update community details (not memberCount — that's via Cloud Function or trusted path)
+      allow update: if isSignedIn() && isOwner(resource.data.ownerId)
+        && request.resource.data.ownerId == resource.data.ownerId; // owner cannot change
+
+      // Only owner can delete
+      allow delete: if isSignedIn() && isOwner(resource.data.ownerId);
+    }
+
+    // ── Memberships ────────────────────────────────────────────────────────
+
+    match /memberships/{membershipId} {
+      // Members can read their own membership; community owner can read all memberships for their community
+      allow read: if isSignedIn()
+        && (resource.data.userId == request.auth.uid
+            || get(/databases/$(database)/documents/communities/$(resource.data.communityId)).data.ownerId == request.auth.uid);
+
+      // User can only create their own membership
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid
+        && membershipId == request.auth.uid + '_' + request.resource.data.communityId
+        && request.resource.data.keys().hasAll(['userId', 'communityId', 'joinedAt']);
+
+      // No updates to memberships
+      allow update: if false;
+
+      // User can remove their own membership (leave)
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    // ── Sessions ────────────────────────────────────────────────────────────
+
+    match /sessions/{sessionId} {
+      // Community members can read sessions in their community
+      allow read: if isSignedIn() && isMember(resource.data.communityId);
+
+      // Only community members can create sessions
+      allow create: if isSignedIn()
+        && isMember(request.resource.data.communityId)
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.keys().hasAll(['communityId', 'createdBy', 'createdByName', 'date', 'time', 'note', 'participantCount', 'createdAt'])
+        && isValidString(request.resource.data.date, 10)
+        && isValidString(request.resource.data.time, 5)
+        && request.resource.data.note is string
+        && request.resource.data.note.size() <= 300
+        && request.resource.data.participantCount == 1;
+
+      // Session creator can update (e.g. reschedule)
+      allow update: if isSignedIn()
+        && resource.data.createdBy == request.auth.uid
+        && request.resource.data.communityId == resource.data.communityId  // cannot move session
+        && request.resource.data.createdBy == resource.data.createdBy;     // cannot change owner
+
+      // Session creator or community owner can delete
+      allow delete: if isSignedIn()
+        && (resource.data.createdBy == request.auth.uid
+            || get(/databases/$(database)/documents/communities/$(resource.data.communityId)).data.ownerId == request.auth.uid);
+    }
+
+    // ── Session Participants ───────────────────────────────────────────────
+
+    match /sessionParticipants/{participantId} {
+      // Community members can read participant lists
+      allow read: if isSignedIn() && isSessionMember(resource.data.sessionId);
+
+      // Signed-in community members can join a session (create their own participant record)
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid
+        && participantId == request.auth.uid + '_' + request.resource.data.sessionId
+        && request.resource.data.keys().hasAll(['userId', 'sessionId', 'displayName', 'joinedAt'])
+        && isValidString(request.resource.data.displayName, 60)
+        && isSessionMember(request.resource.data.sessionId);
+
+      // No updates to participant records
+      allow update: if false;
+
+      // User can remove themselves
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+  }
+}
