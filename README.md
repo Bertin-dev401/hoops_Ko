@@ -2,6 +2,8 @@
 
 Hoops is a pickup basketball organizer. Create communities for your local court, schedule games, and let players sign up — no group chats, no confusion.
 
+<b>Hoops is a PWA so it can work as web and mobile app</b>
+
 ---
 
 ## What You Can Do
