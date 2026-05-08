@@ -16,6 +16,7 @@ import {
   signOut,
   onAuthStateChanged,
   updateProfile,
+  sendEmailVerification,
 } from "firebase/auth";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "./firebase";
@@ -26,6 +27,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, displayName: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  resendVerification: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -45,12 +47,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signUp = async (email: string, password: string, displayName: string) => {
     const { user: newUser } = await createUserWithEmailAndPassword(auth, email, password);
     await updateProfile(newUser, { displayName });
+    await sendEmailVerification(newUser);
     await setDoc(doc(db, "users", newUser.uid), {
       uid: newUser.uid,
       email,
       displayName,
       createdAt: serverTimestamp(),
     });
+  };
+
+  const resendVerification = async () => {
+    if (user && !user.emailVerified) {
+      await sendEmailVerification(user);
+    }
   };
 
   const signIn = async (email: string, password: string) => {
@@ -62,7 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signUp, signIn, logout }}>
+    <AuthContext.Provider value={{ user, loading, signUp, signIn, logout, resendVerification }}>
       {children}
     </AuthContext.Provider>
   );

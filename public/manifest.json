@@ -4,8 +4,8 @@
   "description": "Find players, organize runs.",
   "start_url": "/dashboard",
   "display": "standalone",
-  "background_color": "#0c0f17",
-  "theme_color": "#0c0f17",
+  "background_color": "#0a0a0a",
+  "theme_color": "#0a0a0a",
   "orientation": "portrait",
   "icons": [
     {

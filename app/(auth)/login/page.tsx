@@ -92,6 +92,9 @@ export default function LoginPage() {
         </form>
 
         <p className="auth-form__switch">
+          <Link href="/forgot-password">Forgot password?</Link>
+        </p>
+        <p className="auth-form__switch">
           No account?{" "}
           <Link href="/signup">Create one</Link>
         </p>

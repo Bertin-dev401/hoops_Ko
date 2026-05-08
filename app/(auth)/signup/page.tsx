@@ -37,7 +37,7 @@ export default function SignupPage() {
       } else if (msg.includes("auth/")) {
         setError("Something went wrong. Try again.");
       } else {
-        // Account created but post-signup step failed — redirect anyway
+        // Account created — redirect to dashboard, verification wall will catch unverified users
         router.replace("/dashboard");
         return;
       }
