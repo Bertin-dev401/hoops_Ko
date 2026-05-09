@@ -57,9 +57,12 @@ service cloud.firestore {
         && request.resource.data.description is string
         && request.resource.data.description.size() <= 300;
 
-      // Only owner can update community details (not memberCount — that's via Cloud Function or trusted path)
-      allow update: if isSignedIn() && isOwner(resource.data.ownerId)
-        && request.resource.data.ownerId == resource.data.ownerId; // owner cannot change
+      // Only owner can update community details
+      // memberCount is also updated when users join/leave via increment
+      allow update: if isSignedIn()
+        && (isOwner(resource.data.ownerId)
+            || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberCount'])))
+        && request.resource.data.ownerId == resource.data.ownerId;
 
       // Only owner can delete
       allow delete: if isSignedIn() && isOwner(resource.data.ownerId);
@@ -104,10 +107,12 @@ service cloud.firestore {
         && request.resource.data.participantCount == 1;
 
       // Session creator can update (e.g. reschedule)
+      // participantCount is also updated when users join/leave via increment
       allow update: if isSignedIn()
-        && resource.data.createdBy == request.auth.uid
-        && request.resource.data.communityId == resource.data.communityId  // cannot move session
-        && request.resource.data.createdBy == resource.data.createdBy;     // cannot change owner
+        && (resource.data.createdBy == request.auth.uid
+            || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['participantCount']))
+        && request.resource.data.communityId == resource.data.communityId
+        && request.resource.data.createdBy == resource.data.createdBy;
 
       // Session creator or community owner can delete
       allow delete: if isSignedIn()

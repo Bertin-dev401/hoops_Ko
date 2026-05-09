@@ -46,6 +46,7 @@ export default function CommunityDetailPage() {
   const [joined, setJoined] = useState(false);
   const [loading, setLoading] = useState(true);
   const [membershipLoading, setMembershipLoading] = useState(false);
+  const [actionError, setActionError] = useState("");
 
   // Session participants cache
   const [participants, setParticipants] = useState<Record<string, SessionParticipant[]>>({});
@@ -90,28 +91,31 @@ export default function CommunityDetailPage() {
   const handleJoinCommunity = async () => {
     if (!user || !id) return;
     setMembershipLoading(true);
+    setActionError("");
     try {
       await joinCommunity(user.uid, id);
       setJoined(true);
       setCommunity((c) => c ? { ...c, memberCount: c.memberCount + 1 } : c);
-    } catch (e) { console.error(e); }
+    } catch { setActionError("Failed to join community. Try again."); }
     finally { setMembershipLoading(false); }
   };
 
   const handleLeaveCommunity = async () => {
     if (!user || !id) return;
     setMembershipLoading(true);
+    setActionError("");
     try {
       await leaveCommunity(user.uid, id);
       setJoined(false);
       setCommunity((c) => c ? { ...c, memberCount: Math.max(0, c.memberCount - 1) } : c);
-    } catch (e) { console.error(e); }
+    } catch { setActionError("Failed to leave community. Try again."); }
     finally { setMembershipLoading(false); }
   };
 
   const handleSessionAction = async (session: Session) => {
     if (!user) return;
     setSessionActionId(session.id);
+    setActionError("");
     try {
       if (sessionJoined.has(session.id)) {
         await leaveSession(user.uid, session.id);
@@ -122,7 +126,7 @@ export default function CommunityDetailPage() {
         setSessionJoined((prev) => new Set([...prev, session.id]));
         setSessions((prev) => prev.map((s) => s.id === session.id ? { ...s, participantCount: s.participantCount + 1 } : s));
       }
-    } catch (e) { console.error(e); }
+    } catch { setActionError("Action failed. Check your connection and try again."); }
     finally { setSessionActionId(null); }
   };
 
@@ -135,7 +139,7 @@ export default function CommunityDetailPage() {
       const p = await getSessionParticipants(sessionId);
       setParticipants((prev) => ({ ...prev, [sessionId]: p }));
       setExpandedSession(sessionId);
-    } catch (e) { console.error(e); }
+    } catch { setActionError("Failed to load players. Try again."); }
   };
 
   const handleCreateSession = async (e: FormEvent) => {
@@ -180,6 +184,10 @@ export default function CommunityDetailPage() {
             <BackIcon /> Communities
           </Link>
         </div>
+
+        {actionError && (
+          <div className="auth-form__error" role="alert" style={{ marginBottom: "16px" }}>{actionError}</div>
+        )}
 
         {/* Community header */}
         <div className="page-header animate-in">

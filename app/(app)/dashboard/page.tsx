@@ -32,6 +32,7 @@ export default function DashboardPage() {
   const [communities, setCommunities] = useState<Community[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (!user) return;
@@ -43,8 +44,8 @@ export default function DashboardPage() {
         ]);
         setCommunities(comms);
         setSessions(sess);
-      } catch (e) {
-        console.error(e);
+      } catch {
+        setError("Failed to load data. Check your connection and refresh.");
       } finally {
         setLoading(false);
       }
@@ -55,6 +56,8 @@ export default function DashboardPage() {
 
   return (
     <div className="container" style={{ paddingTop: "36px", paddingBottom: "60px" }}>
+      {error && <div className="auth-form__error" role="alert" style={{ marginBottom: "16px" }}>{error}</div>}
+
       {/* Greeting */}
       <div className="animate-in" style={{ marginBottom: "36px" }}>
         <h1

@@ -29,6 +29,7 @@ export default function SessionsPage() {
   const { user } = useAuth();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (!user) return;
@@ -36,7 +37,7 @@ export default function SessionsPage() {
       try {
         const s = await getUserUpcomingSessions(user.uid);
         setSessions(s);
-      } catch (e) { console.error(e); }
+      } catch { setError("Failed to load sessions. Check your connection and refresh."); }
       finally { setLoading(false); }
     })();
   }, [user]);
@@ -49,6 +50,8 @@ export default function SessionsPage() {
           <p className="page-header__sub">Games you&apos;re signed up for.</p>
         </div>
       </div>
+
+      {error && <div className="auth-form__error" role="alert" style={{ marginBottom: "16px" }}>{error}</div>}
 
       {loading ? (
         <div className="list">

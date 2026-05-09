@@ -11,6 +11,8 @@ import {
   query,
   where,
   orderBy,
+  updateDoc,
+  increment,
   Timestamp,
   serverTimestamp,
   DocumentData,
@@ -98,10 +100,12 @@ export async function joinCommunity(userId: string, communityId: string): Promis
     communityId,
     joinedAt: serverTimestamp(),
   });
+  await updateDoc(doc(db, "communities", communityId), { memberCount: increment(1) });
 }
 
 export async function leaveCommunity(userId: string, communityId: string): Promise<void> {
   await deleteDoc(doc(db, "memberships", `${userId}_${communityId}`));
+  await updateDoc(doc(db, "communities", communityId), { memberCount: increment(-1) });
 }
 
 export async function isMember(userId: string, communityId: string): Promise<boolean> {
@@ -173,10 +177,12 @@ export async function joinSession(
     displayName,
     joinedAt: serverTimestamp(),
   });
+  await updateDoc(doc(db, "sessions", sessionId), { participantCount: increment(1) });
 }
 
 export async function leaveSession(userId: string, sessionId: string): Promise<void> {
   await deleteDoc(doc(db, "sessionParticipants", `${userId}_${sessionId}`));
+  await updateDoc(doc(db, "sessions", sessionId), { participantCount: increment(-1) });
 }
 
 export async function isSessionParticipant(userId: string, sessionId: string): Promise<boolean> {

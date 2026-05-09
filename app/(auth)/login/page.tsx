@@ -6,7 +6,6 @@ import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth";
-import type { Metadata } from "next";
 
 export default function LoginPage() {
   const { signIn } = useAuth();

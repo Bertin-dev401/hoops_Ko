@@ -13,15 +13,13 @@ import {
   Community,
 } from "@/lib/firestore";
 
-type Metadata = {
-  title: string;
-};
-
 export default function CommunitiesPage() {
   const { user } = useAuth();
   const [communities, setCommunities] = useState<Community[]>([]);
   const [memberships, setMemberships] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [joinError, setJoinError] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [joiningId, setJoiningId] = useState<string | null>(null);
 
@@ -41,8 +39,8 @@ export default function CommunitiesPage() {
       const memberChecks = await Promise.all(list.map((c) => isMember(user.uid, c.id)));
       const memberSet = new Set(list.filter((_, i) => memberChecks[i]).map((c) => c.id));
       setMemberships(memberSet);
-    } catch (e) {
-      console.error(e);
+    } catch {
+      setLoadError("Failed to load communities. Check your connection and refresh.");
     } finally {
       setLoading(false);
     }
@@ -75,11 +73,12 @@ export default function CommunitiesPage() {
   const handleJoin = async (communityId: string) => {
     if (!user) return;
     setJoiningId(communityId);
+    setJoinError("");
     try {
       await joinCommunity(user.uid, communityId);
       setMemberships((prev) => new Set([...prev, communityId]));
-    } catch (e) {
-      console.error(e);
+    } catch {
+      setJoinError("Failed to join. Try again.");
     } finally {
       setJoiningId(null);
     }
@@ -103,6 +102,9 @@ export default function CommunitiesPage() {
             New community
           </button>
         </div>
+
+        {loadError && <div className="auth-form__error" role="alert">{loadError}</div>}
+        {joinError && <div className="auth-form__error" role="alert">{joinError}</div>}
 
         {loading ? (
           <div className="grid grid--2">
