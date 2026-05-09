@@ -39,8 +39,8 @@ export default function DashboardPage() {
     (async () => {
       try {
         const [comms, sess] = await Promise.all([
-          getUserCommunities(user.uid),
-          getUserUpcomingSessions(user.uid),
+          getUserCommunities(user.uid).catch(() => []),
+          getUserUpcomingSessions(user.uid).catch(() => []),
         ]);
         setCommunities(comms);
         setSessions(sess);
